@@ -13,7 +13,7 @@ You can download MineScanner from the [releases page](https://github.com/KanemeD
 
 ## Usage  
 
-Python is required to run the scanner 
+Python is required to run the scanner  
 Running it on a Linux VPS or dedicated server is strongly recommended for the best performance
 
 To run it:  
