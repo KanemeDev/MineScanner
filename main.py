@@ -17,8 +17,7 @@ parser.add_argument('-t', type=int, dest='max_workers', default=50, help='Max wo
 #initialize and start scanning
 def init():
     print("-- MineScanner --\n")
-    open("result.txt", "w", encoding='utf-8').close()
-
+    
     #args parse
     args = parser.parse_args()
     iprange = args.iprange
@@ -48,7 +47,7 @@ def init():
 def write_result(text: str):
     try:
         with write_lock:
-            with open('result.txt', 'a', encoding='utf-8') as f:
+            with open('result.txt', 'a+', encoding='utf-8') as f:
                 f.write(text + "\n")
     except Exception as e:
         print(f"Failed to write : {e}")
