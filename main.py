@@ -3,9 +3,9 @@ import socket
 from datetime import datetime
 import threading
 import argparse
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from mcstatus import JavaServer
+import re
 
 write_lock = threading.Lock()
 parser = argparse.ArgumentParser()
@@ -112,7 +112,7 @@ def scan_ip(ip: str):
                             version = getattr(status.version, 'name', 'N/A') if status.version is not None else 'N/A'
                             motd_raw = getattr(status, 'description', None) or getattr(status, 'motd', None)
                             motd_parse = str(motd_raw) if motd_raw is not None else 'N/A'
-                            motd = re.sub(r'§.', '', motd_parse).strip() if motd_parse else 'N/A'
+                            motd = re.sub(r'§.', '', motd_parse).replace('\n', '').strip() if motd_parse else 'N/A'
                             server_ip = ip
                             server_port = port
 
