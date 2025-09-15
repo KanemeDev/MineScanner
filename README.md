@@ -18,7 +18,7 @@ Running it on a Linux VPS or dedicated server is strongly recommended for the be
 
 To run it:  
 ```bash
-py main.py -ip 127.80.*.* -t 50
+sudo py main.py -ip 127.80.*.* -t 50
 
 -ip = your ip range with with * instead of 0
 exemple: 127.80.0.0/16 -> 127.80.*.*
