@@ -3,6 +3,7 @@ import socket
 from datetime import datetime
 import threading
 import argparse
+import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from mcstatus import JavaServer
 
@@ -109,12 +110,14 @@ def scan_ip(ip: str):
                             online = getattr(status.players, 'online', 0) if status.players is not None else 0
                             maximum = getattr(status.players, 'max', 0) if status.players is not None else 0
                             version = getattr(status.version, 'name', 'N/A') if status.version is not None else 'N/A'
+                            motd_raw = getattr(status, 'description', None) or getattr(status, 'motd', None)
+                            motd_parse = str(motd_raw) if motd_raw is not None else 'N/A'
+                            motd = re.sub(r'§.', '', motd_parse).strip() if motd_parse else 'N/A'
                             server_ip = ip
                             server_port = port
 
                             port_msg = (
-                                f"{server_ip}:{server_port} | Minecraft Server\n"
-                                f"Players: {online}/{maximum} | Version: {version}\n"
+                                f"{server_ip}:{server_port} | Players: {online}/{maximum} | Version: {version} | Motd: {motd}\n"
                             )
                         except Exception:
                             return
