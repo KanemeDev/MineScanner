@@ -1,0 +1,2 @@
+127.0.0.1:25565 | Minecraft Server
+Players: 0/0 | Version: 1.8.9
