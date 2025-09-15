@@ -1,10 +1,10 @@
-import requests as r
 from pythonping import ping
 import socket
 from datetime import datetime
 import threading
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from mcstatus import JavaServer
 
 write_lock = threading.Lock()
 parser = argparse.ArgumentParser()
@@ -81,7 +81,6 @@ def scan_ip(ip: str):
     response = ping(ip, count=1, timeout=2)
 
     if response.success():
-        API = "https://api.mcsrvstat.us/3/"
         msg = f"MineScanner | {ip} | found"
         print(msg + "\n")
 
@@ -98,23 +97,27 @@ def scan_ip(ip: str):
                     result = s.connect_ex((ip, port))
                     if result == 0:
                         try:
-                            resp = r.get(f"{API}{ip}:{port}", timeout=3)
-                            mc = resp.json()
-                        except Exception as e:
-                            mc = {}
-                            print(f"Failed to get server info for {ip}:{port}: {e}")
+                            server = JavaServer.lookup(f"{ip}:{port}")
+                            try:
+                                status = server.status(timeout=3)
+                            except TypeError:
+                                try:
+                                    status = server.status(request_timeout=3)
+                                except TypeError:
+                                    status = server.status()
 
-                        players = mc.get('players', {})
-                        online = players.get('online', 0)
-                        maximum = players.get('max', 0)
-                        version = mc.get('version', 'N/A')
-                        server_ip = mc.get('ip', ip)
-                        server_port = mc.get('port', port)
+                            online = getattr(status.players, 'online', 0) if status.players is not None else 0
+                            maximum = getattr(status.players, 'max', 0) if status.players is not None else 0
+                            version = getattr(status.version, 'name', 'N/A') if status.version is not None else 'N/A'
+                            server_ip = ip
+                            server_port = port
 
-                        port_msg = (
-                            f"{server_ip}:{server_port} | Minecraft Server\n"
-                            f"Players: {online}/{maximum} | Version: {version}\n"
-                        )
+                            port_msg = (
+                                f"{server_ip}:{server_port} | Minecraft Server\n"
+                                f"Players: {online}/{maximum} | Version: {version}\n"
+                            )
+                        except Exception:
+                            return
 
                         print(port_msg)
                         write_result(port_msg)
