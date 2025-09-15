@@ -7,7 +7,7 @@ Useful for checking if certain ports are open and quickly detecting active serve
 
 ## Download  
 
-You can download MineScanner from the [releases page](#)   
+You can download MineScanner from the [releases page](https://github.com/KanemeDev/MineScanner/releases)   
 
 ---
 
