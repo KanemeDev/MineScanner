@@ -1,2 +1,1 @@
-127.0.0.1:25565 | Minecraft Server
-Players: 0/0 | Version: 1.8.9
+127.0.0.1:25565 | Players: 0/20 | Version: 1.8.9 | Motd: A Minecraft Server
