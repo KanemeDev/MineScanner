@@ -12,17 +12,21 @@ parser = argparse.ArgumentParser()
 
 #args init
 parser.add_argument('-ip', type=str, dest='iprange', required=True, help='IP range to scan (e.g. 192.168.*.*)')
+parser.add_argument('-p', type=str, dest='port_range', default='25560-25580', help='Port range for scanning')
 parser.add_argument('-t', type=int, dest='max_workers', default=50, help='Max worker threads for scanning')
 
 #initialize and start scanning
 def init():
     print("-- MineScanner --\n")
+    open("result.txt", "w+", encoding='utf-8').close()
     
     #args parse
     args = parser.parse_args()
     iprange = args.iprange
+    port = args.port_range
+    port_range = port.split('-')
     max_workers = args.max_workers
-
+    
     if not iprange:
         print("No IP range provided")
         return
@@ -32,7 +36,7 @@ def init():
     ips = expand_iprange(iprange)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(scan_ip, ip): ip for ip in ips}
+        futures = {executor.submit(scan_ip, ip, port_range): ip for ip in ips}
         try:
             for future in as_completed(futures):
                 try:
@@ -47,7 +51,7 @@ def init():
 def write_result(text: str):
     try:
         with write_lock:
-            with open('result.txt', 'a+', encoding='utf-8') as f:
+            with open('result.txt', 'a', encoding='utf-8') as f:
                 f.write(text + "\n")
     except Exception as e:
         print(f"Failed to write : {e}")
@@ -77,11 +81,11 @@ def expand_iprange(iprange: str):
     return ips
 
 #scan ports with threading
-def scan_ip(ip: str):
+def scan_ip(ip: str, port_range):
     response = ping(ip, count=1, timeout=2)
 
     if response.success():
-        msg = f"MineScanner | {ip} | found"
+        msg = f"MineScanner: {ip} found"
         print(msg + "\n")
 
         print("-" * 50)
@@ -131,7 +135,7 @@ def scan_ip(ip: str):
                         pass
 
             with ThreadPoolExecutor(max_workers=10) as pexec:
-                port_futures = [pexec.submit(port_worker, port) for port in range(25560, 25580)]
+                port_futures = [pexec.submit(port_worker, port) for port in range(int(port_range[0]), int(port_range[1]))]
                 for pf in as_completed(port_futures):
                     try:
                         pf.result()
@@ -144,7 +148,7 @@ def scan_ip(ip: str):
         except socket.error:
             print("Couldn't connect to server")
     else:
-        print(f"MineScanner : {ip}, is unreachable\n")
+        print(f"MineScanner : {ip} unreachable\n")
 
 
 if __name__ == '__main__':
