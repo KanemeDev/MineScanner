@@ -20,7 +20,7 @@ To run it:
 ```bash
 sudo py main.py -ip 127.80.*.* -t 50 -p 25560-25590
 
--ip = your ip range with with * instead of 0
+-ip = your ip range with * instead of 0
 exemple: 127.80.0.0/16 -> 127.80.*.*
 
 -t = the number of threads (default: 50)
