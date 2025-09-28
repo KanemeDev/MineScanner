@@ -7,6 +7,7 @@ import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from mcstatus import JavaServer
 import re
+import time
 
 write_lock = threading.Lock()
 parser = argparse.ArgumentParser()
@@ -37,6 +38,7 @@ def init():
 
     print(f"IP Range: {iprange}\n")
 
+    t1 = time.time()
     ips = expand_iprange(iprange)
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -51,12 +53,17 @@ def init():
             print("Scan interrupted by user")
             executor.shutdown(wait=False)
     
+    t2 = time.time()
+    total = round(t2 - t1, 2)
+    minutes = total // 60
+    seconds = total % 60
+    total = f"{int(minutes)} minutes {int(seconds)} seconds" if minutes else f"{int(seconds)} seconds"
     if webhook_sender:
         with open("result.txt", "r", encoding='utf-8') as f:
             content = f.read()
         if len(content) > 0:
             with open("result.txt", "rb") as f:
-                r.post(webhook, data={"content": f"Scan : **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(len(content.splitlines())/2)} server found."}, files={"result.txt": f})
+                r.post(webhook, data={"content": f"Scan : **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(len(content.splitlines())/2)} server found.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
             print("Scan complete. Results saved in result.txt")
         else:
             r.post(webhook, json={"content": f"Scan : **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}** no results found."})
@@ -64,6 +71,7 @@ def init():
             print("No results to send.")
     else:
         print("Scan complete. Results saved in result.txt")
+    print(f"Total scan time: {total} seconds")
 
 #write results in result.txt
 def write_result(text: str):
