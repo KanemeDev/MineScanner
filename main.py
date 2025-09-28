@@ -1,4 +1,5 @@
 from pythonping import ping
+import requests as r
 import socket
 from datetime import datetime
 import threading
@@ -9,11 +10,13 @@ import re
 
 write_lock = threading.Lock()
 parser = argparse.ArgumentParser()
+webhook = "your webhook url here"
 
 #args init
 parser.add_argument('-ip', type=str, dest='iprange', required=True, help='IP range to scan (e.g. 192.168.*.*)')
 parser.add_argument('-p', type=str, dest='port_range', default='25560-25580', help='Port range for scanning')
 parser.add_argument('-t', type=int, dest='max_workers', default=50, help='Max worker threads for scanning')
+parser.add_argument('-w', type=bool, dest='webhook', default=False, help='Discord webhook result file sender')
 
 #initialize and start scanning
 def init():
@@ -26,6 +29,7 @@ def init():
     port = args.port_range
     port_range = port.split('-')
     max_workers = args.max_workers
+    webhook_sender = args.webhook
     
     if not iprange:
         print("No IP range provided")
@@ -46,6 +50,20 @@ def init():
         except KeyboardInterrupt:
             print("Scan interrupted by user")
             executor.shutdown(wait=False)
+    
+    if webhook_sender:
+        with open("result.txt", "r", encoding='utf-8') as f:
+            content = f.read()
+        if len(content) > 0:
+            with open("result.txt", "rb") as f:
+                r.post(webhook, data={"content": f"Scan : **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(len(content.splitlines())/2)} server found."}, files={"result.txt": f})
+            print("Scan complete. Results saved in result.txt")
+        else:
+            r.post(webhook, json={"content": f"Scan : **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}** no results found."})
+            print("Scan complete. Results saved in result.txt")
+            print("No results to send.")
+    else:
+        print("Scan complete. Results saved in result.txt")
 
 #write results in result.txt
 def write_result(text: str):
@@ -133,6 +151,7 @@ def scan_ip(ip: str, port_range):
                         s.close()
                     except Exception:
                         pass
+                    
 
             with ThreadPoolExecutor(max_workers=10) as pexec:
                 port_futures = [pexec.submit(port_worker, port) for port in range(int(port_range[0]), int(port_range[1]))]
