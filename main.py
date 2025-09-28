@@ -46,9 +46,15 @@ def init():
 
     t1 = time.time()
     ips = expand_iprange(iprange)
+    # add tiny delay to prevent connection bursts
+    SUBMIT_DELAY = 0.03  # 30ms
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(scan_ip, ip, port_range): ip for ip in ips}
+        futures = {}
+        for ip in ips:
+            future = executor.submit(scan_ip, ip, port_range)
+            futures[future] = ip
+            time.sleep(SUBMIT_DELAY)
         try:
             for future in as_completed(futures):
                 try:
