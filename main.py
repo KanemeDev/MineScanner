@@ -6,12 +6,15 @@ import threading
 import argparse
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from mcstatus import JavaServer
+from dotenv import load_dotenv
+import os
 import re
 import time
 
+load_dotenv()
 write_lock = threading.Lock()
 parser = argparse.ArgumentParser()
-webhook = "your webhook url here"
+webhook = os.environ.get("WEBHOOK_URL")
 
 #args init
 parser.add_argument('-ip', type=str, dest='iprange', required=True, help='IP range to scan (e.g. 192.168.*.*)')
@@ -31,6 +34,9 @@ def init():
     port_range = port.split('-')
     max_workers = args.max_workers
     webhook_sender = args.webhook
+    if webhook is None and webhook_sender:
+        print("No webhook URL found in .env file")
+        return
     
     if not iprange:
         print("No IP range provided")
@@ -63,10 +69,10 @@ def init():
             content = f.read()
         if len(content) > 0:
             with open("result.txt", "rb") as f:
-                r.post(webhook, data={"content": f"Scan : **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(len(content.splitlines())/2)} server found.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
+                r.post(webhook, data={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(len(content.splitlines())/2)} server found.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
             print("Scan complete. Results saved in result.txt")
         else:
-            r.post(webhook, json={"content": f"Scan : **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}** no results found."})
+            r.post(webhook, json={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, no result found."})
             print("Scan complete. Results saved in result.txt")
             print("No results to send.")
     else:
@@ -111,13 +117,10 @@ def scan_ip(ip: str, port_range):
     response = ping(ip, count=1, timeout=2)
 
     if response.success():
-        msg = f"MineScanner: {ip} found"
+        msg = f"MineScanner: {ip} has responded to ping"
         print(msg + "\n")
 
-        print("-" * 50)
-        print("Scanning Target: " + ip)
-        print("Scanning started at: " + str(datetime.now()))
-        print("-" * 50)
+        print(f"Scanning {ip} (started at {datetime.now().strftime('%H:%M:%S')})")
 
         try:
             def port_worker(port: int):
@@ -146,7 +149,7 @@ def scan_ip(ip: str, port_range):
                             server_port = port
 
                             port_msg = (
-                                f"{server_ip}:{server_port} | Players: {online}/{maximum} | Version: {version} | Motd: {motd}\n"
+                                f"{server_ip}:{server_port} | Players: {online}/{maximum} | Version: {version} | MOTD: {motd}\n"
                             )
                         except Exception:
                             return
@@ -167,7 +170,7 @@ def scan_ip(ip: str, port_range):
                     try:
                         pf.result()
                     except Exception as e:
-                        print(f"Port error on {ip}: {e}")
+                        print(f"Error with {ip}: {e}")
         except KeyboardInterrupt:
             raise
         except socket.gaierror:
