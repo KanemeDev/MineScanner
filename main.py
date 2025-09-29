@@ -10,8 +10,11 @@ from dotenv import load_dotenv
 import os
 import re
 import time
+from tqdm import tqdm
+from colorama import init as colorama_init, Fore, Style
 
 load_dotenv()
+colorama_init(autoreset=True)
 write_lock = threading.Lock()
 parser = argparse.ArgumentParser()
 webhook = os.environ.get("WEBHOOK_URL")
@@ -24,7 +27,7 @@ parser.add_argument('-w', type=bool, dest='webhook', default=False, help='Discor
 
 #initialize and start scanning
 def init():
-    print("-- MineScanner --\n")
+    print(Fore.MAGENTA + "-- MineScanner --" + Style.RESET_ALL + "\n")
     open("result.txt", "w+", encoding='utf-8').close()
     
     #args parse
@@ -42,28 +45,31 @@ def init():
         print("No IP range provided")
         return
 
-    print(f"IP Range: {iprange}\n")
+    print(Fore.BLUE + f"IP Range: {iprange}" + Style.RESET_ALL + "\n")
 
     t1 = time.time()
     ips = expand_iprange(iprange)
-    # add tiny delay to prevent connection bursts
-    SUBMIT_DELAY = 0.03  # 30ms
+    progress = tqdm(total=len(ips), desc='IPs', ncols=90, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] • {rate_fmt}', colour='green')
+    total_servers = 0
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {}
-        for ip in ips:
-            future = executor.submit(scan_ip, ip, port_range)
-            futures[future] = ip
-            time.sleep(SUBMIT_DELAY)
+        futures = [executor.submit(scan_ip, ip, port_range) for ip in ips]
         try:
-            for future in as_completed(futures):
+            for fut in as_completed(futures):
                 try:
-                    future.result()
+                    found = fut.result()
+                except KeyboardInterrupt:
+                    raise
                 except Exception as e:
-                    print(f"Error scanning {futures[future]}: {e}")
+                    tqdm.write(Fore.RED + f"Error scanning IP: {e}" + Style.RESET_ALL)
+                    found = 0
+                total_servers += found if isinstance(found, int) else 0
+                progress.update(1)
+                progress.set_postfix(servers=total_servers, refresh=True)
         except KeyboardInterrupt:
-            print("Scan interrupted by user")
-            executor.shutdown(wait=False)
+            tqdm.write(Fore.YELLOW + "Scan interrupted by user" + Style.RESET_ALL)
+        finally:
+            progress.close()
     
     t2 = time.time()
     total = round(t2 - t1, 2)
@@ -75,15 +81,16 @@ def init():
             content = f.read()
         if len(content) > 0:
             with open("result.txt", "rb") as f:
-                r.post(webhook, data={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(len(content.splitlines())/2)} server found.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
-            print("Scan complete. Results saved in result.txt")
+                r.post(webhook, data={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(''.join(content).count('Players:'))} server found.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
+            print(Fore.GREEN + "Scan complete. Results saved in result.txt" + Style.RESET_ALL)
         else:
             r.post(webhook, json={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, no result found."})
-            print("Scan complete. Results saved in result.txt")
-            print("No results to send.")
+            print(Fore.GREEN + "Scan complete. Results saved in result.txt" + Style.RESET_ALL)
+            print(Fore.YELLOW + "No results to send." + Style.RESET_ALL)
     else:
-        print("Scan complete. Results saved in result.txt")
-    print(f"Total scan time: {total} seconds")
+        print(Fore.GREEN + "Scan complete. Results saved in result.txt" + Style.RESET_ALL)
+    print(Fore.CYAN + f"Total scan time: {total} seconds" + Style.RESET_ALL)
+    print(Fore.CYAN + f"Total servers found: {total_servers}" + Style.RESET_ALL)
 
 #write results in result.txt
 def write_result(text: str):
@@ -123,13 +130,12 @@ def scan_ip(ip: str, port_range):
     response = ping(ip, count=1, timeout=2)
 
     if response.success():
-        msg = f"MineScanner: {ip} has responded to ping"
-        print(msg + "\n")
-
-        print(f"MineScanner: Scanning {ip} (started at {datetime.now().strftime('%H:%M:%S')})")
+        tqdm.write(Fore.CYAN + f"MineScanner: {ip} is valid, scanning... (started at {datetime.now().strftime('%H:%M:%S')})" + Style.RESET_ALL)
+        ip_found = 0
 
         try:
             def port_worker(port: int):
+                nonlocal ip_found
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 s.settimeout(1)
                 try:
@@ -150,19 +156,20 @@ def scan_ip(ip: str, port_range):
                             version = getattr(status.version, 'name', 'N/A') if status.version is not None else 'N/A'
                             motd_raw = getattr(status, 'description', None) or getattr(status, 'motd', None)
                             motd_parse = str(motd_raw) if motd_raw is not None else 'N/A'
-                            motd = re.sub(r'§.', '', motd_parse).replace('\n', '').strip() if motd_parse else 'N/A'
+                            motd = re.sub(r'§.', '', motd_parse).replace('\\n', ' ').strip() if motd_parse else 'N/A'
                             server_ip = ip
                             server_port = port
 
-                            port_msg = (
-                                f"{server_ip}:{server_port} | Players: {online}/{maximum} | Version: {version} | MOTD: {motd}\n"
-                            )
+                            # Préparation du MOTD: suppression des retours ligne et espaces multiples
+                            clean_motd = motd.replace('\r', ' ').replace('\n', ' ')
+                            clean_motd = re.sub(r'\s+', ' ', clean_motd).strip()
+                            # Construction de la ligne résultat (pas de \n ici, write_result en ajoute déjà un)
+                            port_msg = f"{server_ip}:{server_port} | Players: {online}/{maximum} | Version: {version} | MOTD: {clean_motd}\n"
                         except Exception:
                             return
-
-                        print(port_msg)
+                        tqdm.write(Fore.GREEN + port_msg + Style.RESET_ALL)
                         write_result(port_msg)
-
+                        ip_found += 1
                 finally:
                     try:
                         s.close()
@@ -176,15 +183,17 @@ def scan_ip(ip: str, port_range):
                     try:
                         pf.result()
                     except Exception as e:
-                        print(f"Error with {ip}: {e}")
+                        tqdm.write(Fore.RED + f"Error with {ip}: {e}" + Style.RESET_ALL)
         except KeyboardInterrupt:
             raise
         except socket.gaierror:
-            print("Couldn't connect to server")
+            tqdm.write(Fore.RED + "Couldn't connect to server" + Style.RESET_ALL)
         except socket.error:
-            print("Couldn't connect to server")
+            tqdm.write(Fore.RED + "Couldn't connect to server" + Style.RESET_ALL)
+        return ip_found
     else:
-        print(f"MineScanner: {ip} is unreachable")
+        tqdm.write(Fore.YELLOW + f"MineScanner: {ip} is unreachable" + Style.RESET_ALL)
+        return 0
 
 
 if __name__ == '__main__':

@@ -2,3 +2,5 @@ pythonping
 requests
 mcstatus
 python-dotenv
+tqdm
+colorama
