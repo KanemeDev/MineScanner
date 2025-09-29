@@ -46,9 +46,15 @@ def init():
 
     t1 = time.time()
     ips = expand_iprange(iprange)
+    # add tiny delay to prevent connection bursts
+    SUBMIT_DELAY = 0.03  # 30ms
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = {executor.submit(scan_ip, ip, port_range): ip for ip in ips}
+        futures = {}
+        for ip in ips:
+            future = executor.submit(scan_ip, ip, port_range)
+            futures[future] = ip
+            time.sleep(SUBMIT_DELAY)
         try:
             for future in as_completed(futures):
                 try:
@@ -86,7 +92,7 @@ def write_result(text: str):
             with open('result.txt', 'a', encoding='utf-8') as f:
                 f.write(text + "\n")
     except Exception as e:
-        print(f"Failed to write : {e}")
+        print(f"Failed to write: {e}")
 
 #ip range expansion
 def expand_iprange(iprange: str):
@@ -120,7 +126,7 @@ def scan_ip(ip: str, port_range):
         msg = f"MineScanner: {ip} has responded to ping"
         print(msg + "\n")
 
-        print(f"Scanning {ip} (started at {datetime.now().strftime('%H:%M:%S')})")
+        print(f"MineScanner: Scanning {ip} (started at {datetime.now().strftime('%H:%M:%S')})")
 
         try:
             def port_worker(port: int):
@@ -178,7 +184,7 @@ def scan_ip(ip: str, port_range):
         except socket.error:
             print("Couldn't connect to server")
     else:
-        print(f"MineScanner : {ip} unreachable\n")
+        print(f"MineScanner: {ip} is unreachable")
 
 
 if __name__ == '__main__':
