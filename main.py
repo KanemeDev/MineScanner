@@ -160,7 +160,7 @@ def scan_ip(ip: str, port_range):
                             server_ip = ip
                             server_port = port
 
-                            port_msg = f"{server_ip}:{server_port} | Players: {online}/{maximum} | Version: {version} | MOTD: {"".join(motd.split('\n'))}\n"
+                            port_msg = f"{server_ip}:{server_port} | Players: {online}/{maximum} | Version: {version} | MOTD: {" ".join(motd.split('\n'))}\n"
                         except Exception:
                             return
                         tqdm.write(Fore.GREEN + port_msg + Style.RESET_ALL)
