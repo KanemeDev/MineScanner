@@ -49,15 +49,10 @@ def init():
 
     t1 = time.time()
     ips = expand_iprange(iprange)
-    # NOTE: La barre restait bloquée à 0% parce que nous soumettions TOUTES les futures
-    # (avec un délai artificiel) AVANT d'entrer dans la boucle as_completed qui fait progress.update().
-    # Avec 65 536 IPs et SUBMIT_DELAY=0.03s, il fallait >30 minutes avant la première mise à jour.
-    # Correction: on supprime le délai et on traite les futures au fur et à mesure.
     progress = tqdm(total=len(ips), desc='IPs', ncols=90, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] • {rate_fmt}', colour='green')
     total_servers = 0
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        # Soumission immédiate de toutes les tâches (sans retard artificiel)
         futures = [executor.submit(scan_ip, ip, port_range) for ip in ips]
         try:
             for fut in as_completed(futures):
@@ -70,7 +65,6 @@ def init():
                     found = 0
                 total_servers += found if isinstance(found, int) else 0
                 progress.update(1)
-                # refresh=True pour forcer l'affichage régulier
                 progress.set_postfix(servers=total_servers, refresh=True)
         except KeyboardInterrupt:
             tqdm.write(Fore.YELLOW + "Scan interrupted by user" + Style.RESET_ALL)
