@@ -46,7 +46,7 @@ def init():
 
     t1 = time.time()
     ips = expand_iprange(iprange)
-    # add tiny delay to prevent connection bursts
+    # tiny delay to prevent connection bursts
     SUBMIT_DELAY = 0.03  # 30ms
 
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
@@ -123,10 +123,7 @@ def scan_ip(ip: str, port_range):
     response = ping(ip, count=1, timeout=2)
 
     if response.success():
-        msg = f"MineScanner: {ip} has responded to ping"
-        print(msg + "\n")
-
-        print(f"MineScanner: Scanning {ip} (started at {datetime.now().strftime('%H:%M:%S')})")
+        print(f"MineScanner: {ip} is valid, scanning... (started at {datetime.now().strftime('%H:%M:%S')})")
 
         try:
             def port_worker(port: int):
@@ -150,7 +147,7 @@ def scan_ip(ip: str, port_range):
                             version = getattr(status.version, 'name', 'N/A') if status.version is not None else 'N/A'
                             motd_raw = getattr(status, 'description', None) or getattr(status, 'motd', None)
                             motd_parse = str(motd_raw) if motd_raw is not None else 'N/A'
-                            motd = re.sub(r'§.', '', motd_parse).replace('\n', '').strip() if motd_parse else 'N/A'
+                            motd = re.sub(r'§.', '', motd_parse).replace('\n', ' ').strip() if motd_parse else 'N/A'
                             server_ip = ip
                             server_port = port
 
