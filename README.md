@@ -18,6 +18,8 @@ Running it on a Linux VPS or dedicated server is strongly recommended for the be
 
 To run it:  
 ```bash
+cp .env.example .env
+nano .env  # Set webhook if you use one
 pip install -r requirements.txt
 sudo py main.py -ip 127.80.*.* -t 50 -p 25560-25590 -w True
 
@@ -29,6 +31,6 @@ exemple: 127.80.0.0/16 -> 127.80.*.*
 -p = port range (default: 25560-25580)
 
 -w = webhook result file sender (default: False)
-You must put your webhook URL in your .env file.
+# Set webhook in .env file.
 ```
 ---
