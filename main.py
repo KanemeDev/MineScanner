@@ -87,7 +87,7 @@ def init():
             content = f.read()
         if len(content) > 0:
             with open("result.txt", "rb") as f:
-                r.post(webhook, data={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(len("".join(content).count("Players:")))} server found.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
+                r.post(webhook, data={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(len(''.join(content).count('Players:')))} server found.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
             print(Fore.GREEN + "Scan complete. Results saved in result.txt" + Style.RESET_ALL)
         else:
             r.post(webhook, json={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, no result found."})
