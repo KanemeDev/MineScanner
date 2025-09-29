@@ -49,23 +49,53 @@ def init():
 
     t1 = time.time()
     ips = expand_iprange(iprange)
+    SUBMIT_DELAY = 0.03
+    progress = tqdm(total=len(ips), desc='IPs', ncols=90, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] • {rate_fmt}', colour='green')
     total_servers = 0
+
     with ThreadPoolExecutor(max_workers=max_workers) as executor:
-        futures = [executor.submit(scan_ip, ip, port_range) for ip in ips]
-        future_ip = {f: ip for f, ip in zip(futures, ips)}
+        pending = set()
+        submitted = 0
+        total_ips = len(ips)
+        ip_iter = iter(ips)
         try:
-            for future in tqdm(as_completed(futures), total=len(futures), desc='IPs', ncols=90, bar_format='{l_bar}{bar}| {n_fmt}/{total_fmt} [{elapsed}<{remaining}] • {rate_fmt}', colour='green'):
-                try:
-                    found = future.result()
-                except Exception as e:
-                    tqdm.write(Fore.RED + f"Error scanning {future_ip.get(future, '?')}: {e}" + Style.RESET_ALL)
-                    found = 0
-                if isinstance(found, int):
-                    total_servers += found
-                tqdm.write(Fore.CYAN + f"Progress: {total_servers} servers found" + Style.RESET_ALL)
+            while submitted < total_ips or pending:
+                while submitted < total_ips and len(pending) < max_workers * 3:
+                    ip = next(ip_iter)
+                    fut = executor.submit(scan_ip, ip, port_range)
+                    pending.add(fut)
+                    submitted += 1
+                    time.sleep(SUBMIT_DELAY)
+                done_now = [f for f in list(pending) if f.done()]
+                for f in done_now:
+                    pending.remove(f)
+                    try:
+                        found = f.result()
+                    except Exception as e:
+                        tqdm.write(Fore.RED + f"Error scanning IP: {e}" + Style.RESET_ALL)
+                        found = 0
+                    total_servers += found if isinstance(found, int) else 0
+                    progress.update(1)
+                    progress.set_postfix(servers=total_servers, refresh=False)
+                if not done_now:
+                    time.sleep(0.01)
         except KeyboardInterrupt:
             tqdm.write(Fore.YELLOW + "Scan interrupted by user" + Style.RESET_ALL)
-            executor.shutdown(wait=False)
+            # cancel pending futures (best effort)
+            for f in pending:
+                f.cancel()
+        finally:
+            # drain remaining finished futures for accurate count
+            for f in list(pending):
+                if f.done() and not f.cancelled():
+                    try:
+                        found = f.result()
+                    except Exception:
+                        found = 0
+                    total_servers += found if isinstance(found, int) else 0
+                    progress.update(1)
+                    progress.set_postfix(servers=total_servers, refresh=False)
+            progress.close()
     
     t2 = time.time()
     total = round(t2 - t1, 2)
