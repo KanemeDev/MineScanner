@@ -29,7 +29,7 @@ parser.add_argument('-w', type=bool, dest='webhook', default=False, help='Discor
 def init():
     print(Fore.MAGENTA + "-- MineScanner --" + Style.RESET_ALL + "\n")
     open("result.txt", "w+", encoding='utf-8').close()
-    
+
     #args parse
     args = parser.parse_args()
     iprange = args.iprange
@@ -40,7 +40,7 @@ def init():
     if webhook is None and webhook_sender:
         print("No webhook URL found in .env file")
         return
-    
+
     if not iprange:
         print("No IP range provided")
         return
@@ -70,7 +70,7 @@ def init():
             tqdm.write(Fore.YELLOW + "Scan interrupted by user" + Style.RESET_ALL)
         finally:
             progress.close()
-    
+
     t2 = time.time()
     total = round(t2 - t1, 2)
     minutes = total // 60
@@ -81,7 +81,7 @@ def init():
             content = f.read()
         if len(content) > 0:
             with open("result.txt", "rb") as f:
-                r.post(webhook, data={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(''.join(content).count('Players:'))} server found.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
+                r.post(webhook, data={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, {int(''.join(content).count('Players:'))} server found in range `{iprange}`.\nRan for **{total}** with **{max_workers} workers**."}, files={"result.txt": f})
             print(Fore.GREEN + "Scan complete. Results saved in result.txt" + Style.RESET_ALL)
         else:
             r.post(webhook, json={"content": f"Scan: **{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}**, no result found."})
@@ -175,7 +175,7 @@ def scan_ip(ip: str, port_range):
                         s.close()
                     except Exception:
                         pass
-                    
+
 
             with ThreadPoolExecutor(max_workers=10) as pexec:
                 port_futures = [pexec.submit(port_worker, port) for port in range(int(port_range[0]), int(port_range[1]))]
