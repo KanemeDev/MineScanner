@@ -136,9 +136,10 @@ def scan_ip(ip: str, port_range):
         try:
             def port_worker(port: int):
                 nonlocal ip_found
-                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                s.settimeout(1)
+                s = None
                 try:
+                    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                    s.settimeout(1)
                     result = s.connect_ex((ip, port))
                     if result == 0:
                         try:
@@ -171,13 +172,14 @@ def scan_ip(ip: str, port_range):
                         write_result(port_msg)
                         ip_found += 1
                 finally:
-                    try:
-                        s.close()
-                    except Exception:
-                        pass
+                    if s is not None:
+                        try:
+                            s.close()
+                        except Exception:
+                            pass
 
 
-            with ThreadPoolExecutor(max_workers=10) as pexec:
+            with ThreadPoolExecutor(max_workers=5) as pexec:
                 port_futures = [pexec.submit(port_worker, port) for port in range(int(port_range[0]), int(port_range[1]))]
                 for pf in as_completed(port_futures):
                     try:
